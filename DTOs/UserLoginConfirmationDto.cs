@@ -2,7 +2,7 @@ namespace dotnetApi.DTOs
 {
     public class UserLoginConfirmationDto
     {
-        public byte[] Email { get; set; } = new byte[0];
-        public byte[] ConfirmationCode { get; set; } = new byte[0];
+        public byte[] PasswordHash { get; set; } = new byte[0];
+        public byte[] PasswordSalt { get; set; } = new byte[0];
     }
 }

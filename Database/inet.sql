@@ -14,14 +14,14 @@ BEGIN
     );
 END
 GO
-
+--DROP TABLE IF EXISTS AppSchema.Auths;
 IF not EXISTS (SELECT * FROM sys.tables WHERE name = 'Auths')
 BEGIN
     CREATE TABLE AppSchema.Auths (
         UserId INT IDENTITY(1,1) PRIMARY KEY,
         Email NVARCHAR(100) NOT NULL UNIQUE,
-        PasswordHash VARBINARY,
-        PasswordSalt VARBINARY
+        PasswordHash VARBINARY(MAX),
+        PasswordSalt VARBINARY(MAX)
 
     );
 END
