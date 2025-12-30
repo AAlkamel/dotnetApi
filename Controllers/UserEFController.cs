@@ -3,6 +3,7 @@ using dotnetApi.Models;
 using dotnetApi.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using dotnetApi.Data.Repository;
 
 namespace dotnetApi.Controllers
 {
@@ -10,24 +11,23 @@ namespace dotnetApi.Controllers
     [Route("[controller]")]
     public class UserEFController : ControllerBase
     {
-        private readonly DataContextEF _ef;
-        
-        public UserEFController(IConfiguration config)
+        private IUserRepository _userRepository;
+        public UserEFController(IConfiguration config, IUserRepository userRepository)
         {
-            _ef = new DataContextEF(config);
-
+            _userRepository = userRepository;
         }
 
-        [HttpGet("test")]
-        public async Task<IActionResult> Test()
-        {
-            var dateTime = await _ef.Database.ExecuteSqlRawAsync("SELECT GETDATE()");
-            return Ok(dateTime);
-        }
+        // [HttpGet("test")]
+        // public async Task<IActionResult> Test()
+        // {
+        //     var dateTime = await _ef.Database.ExecuteSqlRawAsync("SELECT GETDATE()");
+        //     return Ok(dateTime);
+        // }
+       
         [HttpGet("users")]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _ef.Users.ToListAsync();
+            var users = await _userRepository.GetAllUsersAsync();
             return Ok(users);
         }
         [HttpGet("user/{id}")]
@@ -35,7 +35,7 @@ namespace dotnetApi.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetUser(int id)
         {
-            var user = await _ef.Users.FindAsync(id);
+            var user = await _userRepository.GetUserByIdAsync(id);
             if (user == null)
                 return NotFound("User not found");
             return Ok(user);
@@ -50,13 +50,14 @@ namespace dotnetApi.Controllers
             {
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Email =  user.Email,
+                Email = user.Email,
                 Gender = user.Gender,
                 Active = user.Active
             };
-            _ef.Users.Add(newUser);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            // _ef.Users.Add(newUser);
+            await _userRepository.AddEntityAsync(newUser);
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
                 return BadRequest("Failed to add user");
             return CreatedAtAction("GetUser", new { id = newUser.UserId }, $"User added successfully with UserId {newUser.UserId}");
         }
@@ -66,12 +67,17 @@ namespace dotnetApi.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpdateUser(int id, User user)
         {
-            var existingUser = await _ef.Users.FindAsync(id);
+            var existingUser = await _userRepository.GetUserByIdAsync(id);
             if (existingUser == null)
                 return BadRequest("User not found");
-            _ef.Users.Update(user);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            existingUser.FirstName = user.FirstName;
+            existingUser.LastName = user.LastName;
+            existingUser.Email = user.Email;
+            existingUser.Gender = user.Gender;
+            existingUser.Active = user.Active;
+            await _userRepository.UpdateEntityAsync(existingUser);
+            bool success = await _userRepository.SaveAsync();
+            if (!success)
                 return BadRequest("Failed to update user");
             return Ok("User updated successfully");
         }
@@ -81,16 +87,17 @@ namespace dotnetApi.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var user =  await _ef.Users.FindAsync(id);
+            var user = await _userRepository.GetUserByIdAsync(id);
             if (user == null)
                 return BadRequest("User not found");
-            _ef.Users.Remove(user);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            await _userRepository.RemoveEntityAsync(user);
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
+
                 return BadRequest("Failed to delete user");
             return Ok("User deleted successfully");
         }
-        
+/*
         //User job info 
         [HttpGet("userjobinfo/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -114,8 +121,9 @@ namespace dotnetApi.Controllers
                 Department = jobInfo.Department
             };
             _ef.UserJobInfos.Add(newJobInfo);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
+
                 return BadRequest("Failed to add user job info");
             return CreatedAtAction("GetUserJobInfo", new { id = newJobInfo.JobId }, $"User job info added successfully with Id {newJobInfo.JobId}");
         }
@@ -128,12 +136,13 @@ namespace dotnetApi.Controllers
             var existingJobInfo = await _ef.UserJobInfos.FindAsync(id);
             if (existingJobInfo == null)
                 return BadRequest("User job info not found");
-                existingJobInfo.UserId = jobInfo.UserId;
-                existingJobInfo.JobTitle = jobInfo.JobTitle;
-                existingJobInfo.Department = jobInfo.Department;
+            existingJobInfo.UserId = jobInfo.UserId;
+            existingJobInfo.JobTitle = jobInfo.JobTitle;
+            existingJobInfo.Department = jobInfo.Department;
             _ef.UserJobInfos.Update(existingJobInfo);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
+
                 return BadRequest("Failed to update user job info");
             return Ok("User job info updated successfully");
         }
@@ -147,8 +156,9 @@ namespace dotnetApi.Controllers
             if (jobInfo == null)
                 return BadRequest("User job info not found");
             _ef.UserJobInfos.Remove(jobInfo);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
+
                 return BadRequest("Failed to delete user job info");
             return Ok("User job info deleted successfully");
         }
@@ -179,8 +189,9 @@ namespace dotnetApi.Controllers
                 Currency = salaryDto.Currency
             };
             _ef.UserSalaries.Add(newSalary);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
+
                 return BadRequest("Failed to add user salary info");
             return CreatedAtAction("GetUserSalary", new { id = newSalary.SalaryId }, $"User salary info added successfully with Id {newSalary.SalaryId}");
         }
@@ -193,12 +204,13 @@ namespace dotnetApi.Controllers
             var existingSalary = await _ef.UserSalaries.FindAsync(id);
             if (existingSalary == null)
                 return BadRequest("User salary info not found");
-                existingSalary.UserId = salaryDto.UserId;
-                existingSalary.Salary = salaryDto.Salary;
-                existingSalary.Currency = salaryDto.Currency;
+            existingSalary.UserId = salaryDto.UserId;
+            existingSalary.Salary = salaryDto.Salary;
+            existingSalary.Currency = salaryDto.Currency;
             _ef.UserSalaries.Update(existingSalary);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
+
                 return BadRequest("Failed to update user salary info");
             return Ok("User salary info updated successfully");
         }
@@ -206,17 +218,19 @@ namespace dotnetApi.Controllers
         [HttpDelete("usersalary/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        
+
         public async Task<IActionResult> DeleteUserSalary(int id)
         {
             var salary = await _ef.UserSalaries.FindAsync(id);
             if (salary == null)
                 return BadRequest("User salary info not found");
             _ef.UserSalaries.Remove(salary);
-            int result = await _ef.SaveChangesAsync();
-            if (result <= 0)
+            bool result = await _userRepository.SaveAsync();
+            if (!result)
+
                 return BadRequest("Failed to delete user salary info");
             return Ok("User salary info deleted successfully");
         }
+    */
     }
 }
